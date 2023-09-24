@@ -85,15 +85,14 @@ public:
 	void send(T &&v) {
 		for (;;) {
 			int ret = sem_wait(&free_slots_);
-			if (ret == 0) {
+			if (ret == 0)
 				break;
-			} else if (ret == -1) {
-				// if (errno == EINTR) {
-				// 	continue;
-				// } else {
-				rusty_panic("sem_wait failed with unexpected errno %d", errno);
-				// }
-			}
+			assert(ret == -1);
+			// if (errno == EINTR) {
+			// 	continue;
+			// } else {
+			rusty_panic("sem_wait failed with unexpected errno %d", errno);
+			// }
 		}
 		size_t i = tail_.fetch_add(1/*, std::memory_order_relaxed*/) & mask_;
 		ring_[i] = std::move(v);
