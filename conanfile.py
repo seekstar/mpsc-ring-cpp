@@ -4,7 +4,7 @@ from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout, CMakeDeps
 
 class mpsc_ringRecipe(ConanFile):
     name = "mpsc-ring"
-    version = "0.1.0"
+    version = "0.1.1"
 
     # Optional metadata
     license = "Dual licensed under the Apache License v2.0 and the MIT License"
@@ -20,7 +20,7 @@ class mpsc_ringRecipe(ConanFile):
     exports_sources = "CMakeLists.txt", "include/*"
 
     def requirements(self):
-        self.requires("rusty-cpp/[>=0.1.6]")
+        self.requires("rusty-cpp/[>=0.1.7]")
 
     def layout(self):
         cmake_layout(self)
