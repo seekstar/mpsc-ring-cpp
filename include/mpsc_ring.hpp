@@ -30,6 +30,7 @@ public:
 	) : mask_(size - 1), ring_(size), ready_(size), head_(0), tail_(0),
 		waiting_(false), sender_num_(0)
 	{
+		std::fill(ready_.begin(), ready_.end(), false);
 		rusty_assert(size > 0, "size should be non-zero");
 		rusty_assert(size == lowbit(size), "size should be the power of 2");
 		int ret = sem_init(&free_slots_, false, size);

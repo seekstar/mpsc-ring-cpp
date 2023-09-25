@@ -4,7 +4,7 @@ from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout, CMakeDeps
 
 class mpsc_ringRecipe(ConanFile):
     name = "mpsc-ring"
-    version = "0.1.1"
+    version = "0.1.2"
 
     # Optional metadata
     license = "Dual licensed under the Apache License v2.0 and the MIT License"
