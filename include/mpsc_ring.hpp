@@ -3,6 +3,7 @@
 
 #include <rusty/macro.h>
 #include <rusty/mem.h>
+#include <rusty/result.h>
 #include <semaphore.h>
 
 #include <atomic>
@@ -13,6 +14,11 @@
 #include <vector>
 
 namespace mpsc_ring {
+
+enum class TryRecvError {
+	Empty,
+	Disconnected,
+};
 
 namespace {
 template <typename T>
@@ -70,17 +76,21 @@ public:
 				return std::nullopt;
 			}
 		}
-		T v = ring_[i].into_inner();
 		head_ += 1;
-		// 1. Clearing ready_ should be after reading from ring_, otherwise it
-		// would be possible to read value corrupted by senders.
-		// 2. Clearing ready_ should be before increasing free_slots,
-		// otherwise it would be possible that ready_ is set by a sender first
-		// and then cleared by us.
-		ready_[i].store(false, std::memory_order_seq_cst);
-		int ret = sem_post(&free_slots_);
-		rusty_assert(ret == 0, "sem_post failed with errno %d", errno);
-		return v;
+		return read(i);
+	}
+	rusty::Result<T, TryRecvError> try_recv() {
+		size_t i = head_ & mask_;
+		// Reading ready_ should be before reading from ring_,
+		// otherwise it would be possible to read incomplete value
+		if (!ready_[i].load(/*std::memory_order_acquire*/)) {
+			if (sender_num_.load(/*std::memory_order_relaxed*/) == 0)
+				return TryRecvError::Disconnected;
+			else
+				return TryRecvError::Empty;
+		}
+		head_ += 1;
+		return read(i);
 	}
 	void send(T &&v) {
 		for (;;) {
@@ -131,6 +141,18 @@ public:
 	}
 
 private:
+	T read(size_t i) {
+		T v = ring_[i].into_inner();
+		// 1. Clearing ready_ should be after reading from ring_, otherwise it
+		// would be possible to read value corrupted by senders.
+		// 2. Clearing ready_ should be before increasing free_slots,
+		// otherwise it would be possible that ready_ is set by a sender first
+		// and then cleared by us.
+		ready_[i].store(false, std::memory_order_seq_cst);
+		int ret = sem_post(&free_slots_);
+		rusty_assert(ret == 0, "sem_post failed with errno %d", errno);
+		return v;
+	}
 	size_t mask_;
 	sem_t free_slots_;
 	std::vector<rusty::mem::ManuallyDrop<T>> ring_;
@@ -160,15 +182,16 @@ public:
 		return *this;
 	}
 	~Sender() {
-		if (ring_.get() != nullptr) {
-			ring_.get()->dec_sender();
-		}
+		if (ring_.get() != nullptr)
+			do_drop();
 	}
 	Sender<T> clone() { return Sender<T>(ring_); }
+	void drop() { do_drop(); ring_.reset(); }
 	void send(T v) {
 		ring_.get()->send(std::move(v));
 	}
 private:
+	void do_drop() { ring_.get()->dec_sender(); }
 	Sender(std::shared_ptr<Ring<T>> ring) : ring_(std::move(ring)) {
 		ring_.get()->inc_sender();
 	}
@@ -189,6 +212,9 @@ public:
 	}
 	std::optional<T> recv() {
 		return ring_.get()->recv();
+	}
+	rusty::Result<T, TryRecvError> try_recv() {
+		return ring_.get()->try_recv();
 	}
 private:
 	Receiver(std::shared_ptr<Ring<T>> ring) : ring_(std::move(ring)) {}

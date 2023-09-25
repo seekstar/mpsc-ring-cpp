@@ -20,7 +20,7 @@ class mpsc_ringRecipe(ConanFile):
     exports_sources = "CMakeLists.txt", "include/*"
 
     def requirements(self):
-        self.requires("rusty-cpp/[>=0.1.7]")
+        self.requires("rusty-cpp/[>=0.1.8]")
 
     def layout(self):
         cmake_layout(self)
