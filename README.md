@@ -2,6 +2,8 @@
 
 Lock-free unless the channel is empty.
 
+Tests: <https://github.com/seekstar/tests-channel/tree/mpsc-ring>
+
 ## Credits
 
 Using semaphore to control the entrance of senders is inspired by `tokio::sync::mpsc`.
